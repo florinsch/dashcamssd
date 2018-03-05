@@ -13,6 +13,8 @@ from ssd import build_ssd
 parser = argparse.ArgumentParser(description='Single Shot MultiBox Detection')
 parser.add_argument('--weights', default='weights/ssd300_mAP_77.43_v2.pth',  # ssd_300_VOC0712.pth
                     type=str, help='Trained state_dict file path.')
+parser.add_argument('--video', default='dashcam.mp4', type=str, help='Video to process.')
+parser.add_argument('--threshold', default=0.2, type=float, help='Threshold to filter detections.')
 parser.add_argument('--cuda', default=False, type=bool,
                     help='Use cuda.')
 args = parser.parse_args()
@@ -23,7 +25,6 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 def cv2_demo(net, transform, stream):
     is_cuda = next(net.parameters()).is_cuda
-    from datetime import datetime
 
     def predict(frame):
         height, width = frame.shape[:2]
@@ -34,7 +35,7 @@ def cv2_demo(net, transform, stream):
         scale = torch.Tensor([width, height, width, height])
         for i in range(detections.size(1)):
             j = 0
-            while detections[0, i, j, 0] >= 0.5:
+            while detections[0, i, j, 0] >= args.threshold:
                 pt = (detections[0, i, j, 1:] * scale).cpu().numpy()
                 cv2.rectangle(frame, (int(pt[0]), int(pt[1])), (int(pt[2]),
                                                                 int(pt[3])), COLORS[i % 3], 2)
@@ -94,9 +95,8 @@ if __name__ == '__main__':
     net.load_state_dict(torch.load(args.weights, map_location=lambda storage, loc: storage))
     transform = BaseTransform(net.size, (104 / 256.0, 117 / 256.0, 123 / 256.0))
 
-    stream = FileVideoStream('dashcam.mp4').start()
+    stream = FileVideoStream(args.video).start()
     # stream.stream.set(cv2.CAP_PROP_FPS, 1)
-
     fps = FPS().start()
     # stop the timer and display FPS information
     cv2_demo(net.eval(), transform, stream)

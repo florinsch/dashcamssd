@@ -1,7 +1,7 @@
 # Object detection in dashcam video(s)
 ## Using the SSD: Single Shot MultiBox Object Detector
 
-![alt text](./dashcam.png "Demo image")
+![alt text](dashcam.png "Demo image")
 
 [Single Shot MultiBox Detector](http://arxiv.org/abs/1512.02325) from the 2016 paper by Wei Liu, Dragomir Anguelov, Dumitru Erhan, Christian Szegedy, Scott Reed, Cheng-Yang, and Alexander C. Berg. 
 Code: [here](https://github.com/amdegroot/ssd.pytorch)
@@ -17,7 +17,7 @@ cd dashcamssd
 
 pip3 install -r requirements.txt
 
-wget -c https://s3.amazonaws.com/amdegroot-models/ssd_300_VOC0712.pth -P weights/ 
+wget -c https://s3.amazonaws.com/amdegroot-models/ssd300_mAP_77.43_v2.pth -P weights/ 
 ```
 
 
