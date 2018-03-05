@@ -3,11 +3,15 @@ import torch
 from torch.autograd import Variable
 import cv2
 import time
+import imutils
 from imutils.video import FPS, FileVideoStream
 import argparse
 
+from data import BaseTransform, VOC_CLASSES as labelmap
+from ssd import build_ssd
+
 parser = argparse.ArgumentParser(description='Single Shot MultiBox Detection')
-parser.add_argument('--weights', default='weights/ssd_300_VOC0712.pth',  # ssd_300_VOC0712.pth
+parser.add_argument('--weights', default='weights/ssd300_mAP_77.43_v2.pth',  # ssd_300_VOC0712.pth
                     type=str, help='Trained state_dict file path.')
 parser.add_argument('--cuda', default=False, type=bool,
                     help='Use cuda.')
@@ -18,17 +22,19 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
 def cv2_demo(net, transform, stream):
+    is_cuda = next(net.parameters()).is_cuda
+    from datetime import datetime
+
     def predict(frame):
         height, width = frame.shape[:2]
         x = torch.from_numpy(transform(frame)[0]).permute(2, 0, 1)
-        x = Variable(x.unsqueeze(0))
-        y = net(x)  # forward pass
+        y = net(Variable(x.unsqueeze(0).cuda() if is_cuda else x.unsqueeze(0)))  # forward pass
         detections = y.data
         # scale each detection back up to the image
         scale = torch.Tensor([width, height, width, height])
         for i in range(detections.size(1)):
             j = 0
-            while detections[0, i, j, 0] >= 0.6:
+            while detections[0, i, j, 0] >= 0.5:
                 pt = (detections[0, i, j, 1:] * scale).cpu().numpy()
                 cv2.rectangle(frame, (int(pt[0]), int(pt[1])), (int(pt[2]),
                                                                 int(pt[3])), COLORS[i % 3], 2)
@@ -44,9 +50,15 @@ def cv2_demo(net, transform, stream):
     time.sleep(1.0)
     # start fps timer
     # loop over frames from the video file stream
+    c = -1
     while True:
+        c += 1
         # grab next frame
-        frame = stream.read()
+        if c % 10 == 0:
+            frame = stream.read()
+            # frame = imutils.resize(frame, width=350)
+        else:
+            continue
         key = cv2.waitKey(1) & 0xFF
 
         # update FPS counter
@@ -70,9 +82,6 @@ if __name__ == '__main__':
     from os import path
     sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
-    from data import BaseTransform, VOC_CLASSES as labelmap
-    from ssd import build_ssd
-
     if args.cuda:
         if torch.cuda.is_available():
             current = torch.cuda.current_device()
@@ -82,10 +91,10 @@ if __name__ == '__main__':
             raise EnvironmentError("Cuda not available on your platform!")
 
     net = build_ssd('test', 300, 21)    # initialize SSD
-    net.load_state_dict(torch.load(args.weights))
+    net.load_state_dict(torch.load(args.weights, map_location=lambda storage, loc: storage))
     transform = BaseTransform(net.size, (104 / 256.0, 117 / 256.0, 123 / 256.0))
 
-    stream = FileVideoStream('dashcam1.mp4').start()
+    stream = FileVideoStream('dashcam.mp4').start()
     # stream.stream.set(cv2.CAP_PROP_FPS, 1)
 
     fps = FPS().start()
